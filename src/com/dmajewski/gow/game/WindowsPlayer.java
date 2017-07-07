@@ -1,20 +1,41 @@
 package com.dmajewski.gow.game;
 
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.Consumer;
 
-import org.apache.commons.lang3.StringUtils;
+import javax.imageio.ImageIO;
+
+import org.ddogleg.struct.FastQueue;
 
 import com.dmajewski.gow.img.ScreenProcessor;
-import com.dmajewski.gow.windows.app.JarUtils;
 import com.dmajewski.gow.windows.driver.Paint;
 import com.dmajewski.gow.windows.driver.WinRobot;
 
-import net.sourceforge.tess4j.ITesseract;
-import net.sourceforge.tess4j.Tesseract;
-import net.sourceforge.tess4j.TesseractException;
+import boofcv.alg.filter.binary.BinaryImageOps;
+import boofcv.alg.filter.binary.Contour;
+import boofcv.alg.filter.binary.GThresholdImageOps;
+import boofcv.alg.filter.binary.ThresholdImageOps;
+import boofcv.alg.shapes.ellipse.BinaryEllipseDetector;
+import boofcv.alg.shapes.polygon.BinaryPolygonDetector;
+import boofcv.factory.shape.ConfigEllipseDetector;
+import boofcv.factory.shape.ConfigPolygonDetector;
+import boofcv.factory.shape.FactoryShapeDetector;
+import boofcv.gui.binary.VisualizeBinaryData;
+import boofcv.gui.feature.VisualizeShapes;
+import boofcv.io.image.ConvertBufferedImage;
+import boofcv.struct.ConnectRule;
+import boofcv.struct.image.GrayS32;
+import boofcv.struct.image.GrayU8;
+import georegression.struct.shapes.EllipseRotated_F64;
+import georegression.struct.shapes.Polygon2D_F64;
 
 public class WindowsPlayer implements Runnable{
 	
@@ -38,45 +59,191 @@ public class WindowsPlayer implements Runnable{
 		}
 	}
 	
-	private ITesseract instance = new Tesseract();
-	
 	public WindowsPlayer() {
-		instance.setDatapath(new File(JarUtils.GOW_TEMP_DIR).getPath());
-		instance.setConfigs(Arrays.asList("bazaar"));
 	}
 	
-	public boolean isMainScreenActive(){
-		try {
-			String guild = instance.doOCR(WinRobot.takeScreenshot().getSubimage(
+	private static final ConfigPolygonDetector config = new ConfigPolygonDetector(4,8);
+	private static final ConfigEllipseDetector ellipseConfig = new ConfigEllipseDetector();
+	static{
+		ellipseConfig.processInternal = true;
+	}
+	private static final BinaryPolygonDetector<GrayU8> polygonDetector = FactoryShapeDetector.polygon(config, GrayU8.class);
+	private static final BinaryEllipseDetector<GrayU8> ellipseDetector = FactoryShapeDetector.ellipse(null, GrayU8.class);
+	
+	public static boolean isMainScreenActive(){
+			BufferedImage image =  WinRobot.takeScreenshot().getSubimage(
 					(int) Math.round(1054 * WinRobot.xFix),
 					(int) Math.round(1003 * WinRobot.yFix), 
 					(int) Math.round(91 * WinRobot.xFix),
-					(int) Math.round(33 * WinRobot.yFix)));
-			return StringUtils.equalsIgnoreCase("Guild", StringUtils.trimToEmpty(guild));
-		} catch (TesseractException e) {
-		}
-		return false;
+					(int) Math.round(33 * WinRobot.yFix));
+			
+			GrayU8 input = ConvertBufferedImage.convertFromSingle(image, null, GrayU8.class);
+			GrayU8 binary = new GrayU8(input.width,input.height);
+			GrayS32 label = new GrayS32(input.width,input.height);
+			int threshold = GThresholdImageOps.computeOtsu(input, 0, 255);
+			ThresholdImageOps.threshold(input, binary, threshold, true);
+			BinaryImageOps.invert(binary, binary);
+			
+			GrayU8 filtered = BinaryImageOps.erode8(binary, 1, null);
+			filtered = BinaryImageOps.dilate8(filtered, 1, null);		
+			
+			
+			
+			polygonDetector.process(input, filtered);
+			ellipseDetector.process(input, filtered);
+			
+			FastQueue<Polygon2D_F64> polygonFound = polygonDetector.getFoundPolygons();
+			FastQueue<EllipseRotated_F64> ellipseFound = ellipseDetector.getFoundEllipses();
+			
+			System.out.println("Polygons found: " + polygonFound.size);
+			System.out.println("Ellipses found: " + ellipseFound.size);
+			
+			List<Contour> contours = BinaryImageOps.contour(filtered, ConnectRule.EIGHT, label);
+			
+			// colors of contours
+			int colorExternal = 0xFFFFFF;
+			int colorInternal = 0xFF2020;			
+			
+			System.out.println("Found contours: " + contours.size());
+			BufferedImage visualLabel = VisualizeBinaryData.renderLabeledBG(label, contours.size(), null);
+			
+			BufferedImage visualContour = VisualizeBinaryData.renderContours(contours, colorExternal, colorInternal,
+					input.width, input.height, null);
+			
+			Graphics2D g2 = image.createGraphics();
+			g2.setStroke(new BasicStroke(3));
+			for (int i = 0; i < polygonFound.size; i++) {
+				g2.setColor(Color.RED);
+				VisualizeShapes.drawPolygon(polygonFound.get(i), true, g2, true);
+				g2.setColor(Color.CYAN);
+				VisualizeShapes.drawPolygonCorners(polygonFound.get(i), 2, g2, true);
+			}
+			
+			for (int i = 0; i < ellipseFound.size; i++) {
+				g2.setColor(Color.GREEN);
+				VisualizeShapes.drawEllipse(ellipseFound.get(i), g2);
+			}
+			
+			try {
+				File f =Files.createTempFile("shapes", ".bmp").toFile();
+				ImageIO.write(image, "bmp", f);
+				System.out.println(f);
+				File fl =Files.createTempFile("labels", ".png").toFile();
+				ImageIO.write(visualLabel, "png", fl);
+				System.out.println(fl);
+				File fc =Files.createTempFile("contours", ".png").toFile();
+				ImageIO.write(visualContour, "png", fc);
+				System.out.println(fc);
+				File fb =Files.createTempFile("binary", ".bmp").toFile();
+				ImageIO.write(VisualizeBinaryData.renderBinary(binary, false, null), "bmp", fb);
+				System.out.println(fb);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			
+		return ellipseFound.size == 3 && contours.size() == 6;
 	}
 	
-	public int getNumberOfRoundsLeft(BufferedImage... img){
-		try {
-			if(img == null){
-				img = new BufferedImage[]{WinRobot.takeScreenshot()};
-			}
-//			long start = System.currentTimeMillis();
-			String value = instance.doOCR(img[0].getSubimage(
-					(int) Math.round(285 * WinRobot.xFix),
-					(int) Math.round(226 * WinRobot.yFix), 
-					(int) Math.round(66 * WinRobot.xFix),
-					(int) Math.round(42 * WinRobot.yFix)));
-			value = StringUtils.trim(value);
-			//System.out.println("ocr time: "+ (System.currentTimeMillis() - start));
-			if(StringUtils.isNumeric(value)){
-				return Integer.valueOf(value);
-			}
-		} catch (TesseractException e) {
+	public static boolean noMoreMovesLeft(BufferedImage... img){
+		if (img == null || img.length == 0) {
+			img = new BufferedImage[] { WinRobot.takeScreenshot() };
 		}
-		return Integer.MAX_VALUE;
+		BufferedImage image = img[0].getSubimage(
+				(int) Math.round(285 * WinRobot.xFix),
+				(int) Math.round(226 * WinRobot.yFix), 
+				(int) Math.round(66 * WinRobot.xFix),
+				(int) Math.round(42 * WinRobot.yFix));
+		
+		GrayU8 input = ConvertBufferedImage.convertFromSingle(image, null, GrayU8.class);
+		GrayU8 binary = new GrayU8(input.width,input.height);
+		GrayS32 label = new GrayS32(input.width,input.height);
+		int threshold = GThresholdImageOps.computeOtsu(input, 0, 255);
+		ThresholdImageOps.threshold(input, binary, threshold, true);
+		binary = BinaryImageOps.invert(binary, binary);
+		
+		GrayU8 filtered = BinaryImageOps.erode8(binary, 1, null);
+		filtered = BinaryImageOps.dilate8(filtered, 1, null);
+		
+		polygonDetector.process(input, filtered);
+		ellipseDetector.process(input, filtered);
+		
+		FastQueue<Polygon2D_F64> polygonFound = polygonDetector.getFoundPolygons();
+		FastQueue<EllipseRotated_F64> ellipseFound = ellipseDetector.getFoundEllipses();
+		
+		System.out.println("Polygons found: " + polygonFound.size);
+		System.out.println("Ellipses found: " + ellipseFound.size);
+		
+		List<Contour> contours = BinaryImageOps.contour(filtered, ConnectRule.EIGHT, label);
+		
+		boolean hasOneInternal = false;
+		
+		if(contours.size() == 1){
+			hasOneInternal = contours.get(0).internal != null && !contours.get(0).internal.isEmpty()
+					&& contours.get(0).internal.size() == 1;
+		}
+				
+		System.out.println("HasOneInternal: " + hasOneInternal);
+		
+		// colors of contours
+		int colorExternal = 0xFFFFFF;
+		int colorInternal = 0xFF2020;			
+		
+		System.out.println("Found contours: " + contours.size());
+		BufferedImage visualLabel = VisualizeBinaryData.renderLabeledBG(label, contours.size(), null);
+		
+		BufferedImage visualContour = VisualizeBinaryData.renderContours(contours, colorExternal, colorInternal,
+				input.width, input.height, null);
+		
+		Graphics2D g2 = image.createGraphics();
+		g2.setStroke(new BasicStroke(3));
+		for (int i = 0; i < polygonFound.size; i++) {
+			g2.setColor(Color.RED);
+			VisualizeShapes.drawPolygon(polygonFound.get(i), true, g2, true);
+			g2.setColor(Color.CYAN);
+			VisualizeShapes.drawPolygonCorners(polygonFound.get(i), 2, g2, true);
+		}
+		
+		for (int i = 0; i < ellipseFound.size; i++) {
+			g2.setColor(Color.GREEN);
+			VisualizeShapes.drawEllipse(ellipseFound.get(i), g2);
+		}
+		
+		try {
+			File f =Files.createTempFile("shapes", ".bmp").toFile();
+			ImageIO.write(image, "bmp", f);
+			System.out.println(f);
+			File fl =Files.createTempFile("labels", ".png").toFile();
+			ImageIO.write(visualLabel, "png", fl);
+			System.out.println(fl);
+			File fc =Files.createTempFile("contours", ".png").toFile();
+			ImageIO.write(visualContour, "png", fc);
+			System.out.println(fc);
+			File fb =Files.createTempFile("binary", ".bmp").toFile();
+			ImageIO.write(VisualizeBinaryData.renderBinary(filtered, false, null), "bmp", fb);
+			System.out.println(fb);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		
+//		try {
+//			if(img == null){
+//				img = new BufferedImage[]{WinRobot.takeScreenshot()};
+//			}
+////			long start = System.currentTimeMillis();
+//			String value = instance.doOCR(img[0].getSubimage(
+//					(int) Math.round(285 * WinRobot.xFix),
+//					(int) Math.round(226 * WinRobot.yFix), 
+//					(int) Math.round(66 * WinRobot.xFix),
+//					(int) Math.round(42 * WinRobot.yFix)));
+//			value = StringUtils.trim(value);
+//			//System.out.println("ocr time: "+ (System.currentTimeMillis() - start));
+//			if(StringUtils.isNumeric(value)){
+//				return Integer.valueOf(value);
+//			}
+//		} catch (TesseractException e) {
+//		}
+		return contours.size() == 1 && hasOneInternal && ellipseFound.size == 1;
 	}
 	
 	public void startNewGame() throws Exception{
@@ -145,7 +312,7 @@ public class WindowsPlayer implements Runnable{
 			// avgNumber = numColor;
 			
 //			ImageIO.write(roundNumber, "png", Files.createTempFile("num", ".png").toFile());
-			if(getNumberOfRoundsLeft(bufferedImage) == 0){
+			if(noMoreMovesLeft(bufferedImage)){
 				endGame = 2;
 			}
 			
