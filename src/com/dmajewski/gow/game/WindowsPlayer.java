@@ -1,17 +1,9 @@
 package com.dmajewski.gow.game;
 
-import java.awt.BasicStroke;
-import java.awt.Color;
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
-
-import javax.imageio.ImageIO;
 
 import org.ddogleg.struct.FastQueue;
 
@@ -24,18 +16,13 @@ import boofcv.alg.filter.binary.Contour;
 import boofcv.alg.filter.binary.GThresholdImageOps;
 import boofcv.alg.filter.binary.ThresholdImageOps;
 import boofcv.alg.shapes.ellipse.BinaryEllipseDetector;
-import boofcv.alg.shapes.polygon.BinaryPolygonDetector;
 import boofcv.factory.shape.ConfigEllipseDetector;
-import boofcv.factory.shape.ConfigPolygonDetector;
 import boofcv.factory.shape.FactoryShapeDetector;
-import boofcv.gui.binary.VisualizeBinaryData;
-import boofcv.gui.feature.VisualizeShapes;
 import boofcv.io.image.ConvertBufferedImage;
 import boofcv.struct.ConnectRule;
 import boofcv.struct.image.GrayS32;
 import boofcv.struct.image.GrayU8;
 import georegression.struct.shapes.EllipseRotated_F64;
-import georegression.struct.shapes.Polygon2D_F64;
 
 public class WindowsPlayer implements Runnable{
 	
@@ -62,12 +49,10 @@ public class WindowsPlayer implements Runnable{
 	public WindowsPlayer() {
 	}
 	
-	private static final ConfigPolygonDetector config = new ConfigPolygonDetector(4,8);
 	private static final ConfigEllipseDetector ellipseConfig = new ConfigEllipseDetector();
 	static{
 		ellipseConfig.processInternal = true;
 	}
-	private static final BinaryPolygonDetector<GrayU8> polygonDetector = FactoryShapeDetector.polygon(config, GrayU8.class);
 	private static final BinaryEllipseDetector<GrayU8> ellipseDetector = FactoryShapeDetector.ellipse(null, GrayU8.class);
 	
 	public static boolean isMainScreenActive(){
@@ -87,60 +72,12 @@ public class WindowsPlayer implements Runnable{
 			GrayU8 filtered = BinaryImageOps.erode8(binary, 1, null);
 			filtered = BinaryImageOps.dilate8(filtered, 1, null);		
 			
-			
-			
-			polygonDetector.process(input, filtered);
 			ellipseDetector.process(input, filtered);
 			
-			FastQueue<Polygon2D_F64> polygonFound = polygonDetector.getFoundPolygons();
 			FastQueue<EllipseRotated_F64> ellipseFound = ellipseDetector.getFoundEllipses();
 			
-			System.out.println("Polygons found: " + polygonFound.size);
-			System.out.println("Ellipses found: " + ellipseFound.size);
-			
 			List<Contour> contours = BinaryImageOps.contour(filtered, ConnectRule.EIGHT, label);
-			
-			// colors of contours
-			int colorExternal = 0xFFFFFF;
-			int colorInternal = 0xFF2020;			
-			
-			System.out.println("Found contours: " + contours.size());
-			BufferedImage visualLabel = VisualizeBinaryData.renderLabeledBG(label, contours.size(), null);
-			
-			BufferedImage visualContour = VisualizeBinaryData.renderContours(contours, colorExternal, colorInternal,
-					input.width, input.height, null);
-			
-			Graphics2D g2 = image.createGraphics();
-			g2.setStroke(new BasicStroke(3));
-			for (int i = 0; i < polygonFound.size; i++) {
-				g2.setColor(Color.RED);
-				VisualizeShapes.drawPolygon(polygonFound.get(i), true, g2, true);
-				g2.setColor(Color.CYAN);
-				VisualizeShapes.drawPolygonCorners(polygonFound.get(i), 2, g2, true);
-			}
-			
-			for (int i = 0; i < ellipseFound.size; i++) {
-				g2.setColor(Color.GREEN);
-				VisualizeShapes.drawEllipse(ellipseFound.get(i), g2);
-			}
-			
-			try {
-				File f =Files.createTempFile("shapes", ".bmp").toFile();
-				ImageIO.write(image, "bmp", f);
-				System.out.println(f);
-				File fl =Files.createTempFile("labels", ".png").toFile();
-				ImageIO.write(visualLabel, "png", fl);
-				System.out.println(fl);
-				File fc =Files.createTempFile("contours", ".png").toFile();
-				ImageIO.write(visualContour, "png", fc);
-				System.out.println(fc);
-				File fb =Files.createTempFile("binary", ".bmp").toFile();
-				ImageIO.write(VisualizeBinaryData.renderBinary(binary, false, null), "bmp", fb);
-				System.out.println(fb);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			
+						
 		return ellipseFound.size == 3 && contours.size() == 6;
 	}
 	
@@ -164,14 +101,9 @@ public class WindowsPlayer implements Runnable{
 		GrayU8 filtered = BinaryImageOps.erode8(binary, 1, null);
 		filtered = BinaryImageOps.dilate8(filtered, 1, null);
 		
-		polygonDetector.process(input, filtered);
 		ellipseDetector.process(input, filtered);
 		
-		FastQueue<Polygon2D_F64> polygonFound = polygonDetector.getFoundPolygons();
 		FastQueue<EllipseRotated_F64> ellipseFound = ellipseDetector.getFoundEllipses();
-		
-		System.out.println("Polygons found: " + polygonFound.size);
-		System.out.println("Ellipses found: " + ellipseFound.size);
 		
 		List<Contour> contours = BinaryImageOps.contour(filtered, ConnectRule.EIGHT, label);
 		
@@ -181,68 +113,6 @@ public class WindowsPlayer implements Runnable{
 			hasOneInternal = contours.get(0).internal != null && !contours.get(0).internal.isEmpty()
 					&& contours.get(0).internal.size() == 1;
 		}
-				
-		System.out.println("HasOneInternal: " + hasOneInternal);
-		
-		// colors of contours
-		int colorExternal = 0xFFFFFF;
-		int colorInternal = 0xFF2020;			
-		
-		System.out.println("Found contours: " + contours.size());
-		BufferedImage visualLabel = VisualizeBinaryData.renderLabeledBG(label, contours.size(), null);
-		
-		BufferedImage visualContour = VisualizeBinaryData.renderContours(contours, colorExternal, colorInternal,
-				input.width, input.height, null);
-		
-		Graphics2D g2 = image.createGraphics();
-		g2.setStroke(new BasicStroke(3));
-		for (int i = 0; i < polygonFound.size; i++) {
-			g2.setColor(Color.RED);
-			VisualizeShapes.drawPolygon(polygonFound.get(i), true, g2, true);
-			g2.setColor(Color.CYAN);
-			VisualizeShapes.drawPolygonCorners(polygonFound.get(i), 2, g2, true);
-		}
-		
-		for (int i = 0; i < ellipseFound.size; i++) {
-			g2.setColor(Color.GREEN);
-			VisualizeShapes.drawEllipse(ellipseFound.get(i), g2);
-		}
-		
-		try {
-			File f =Files.createTempFile("shapes", ".bmp").toFile();
-			ImageIO.write(image, "bmp", f);
-			System.out.println(f);
-			File fl =Files.createTempFile("labels", ".png").toFile();
-			ImageIO.write(visualLabel, "png", fl);
-			System.out.println(fl);
-			File fc =Files.createTempFile("contours", ".png").toFile();
-			ImageIO.write(visualContour, "png", fc);
-			System.out.println(fc);
-			File fb =Files.createTempFile("binary", ".bmp").toFile();
-			ImageIO.write(VisualizeBinaryData.renderBinary(filtered, false, null), "bmp", fb);
-			System.out.println(fb);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		
-		
-//		try {
-//			if(img == null){
-//				img = new BufferedImage[]{WinRobot.takeScreenshot()};
-//			}
-////			long start = System.currentTimeMillis();
-//			String value = instance.doOCR(img[0].getSubimage(
-//					(int) Math.round(285 * WinRobot.xFix),
-//					(int) Math.round(226 * WinRobot.yFix), 
-//					(int) Math.round(66 * WinRobot.xFix),
-//					(int) Math.round(42 * WinRobot.yFix)));
-//			value = StringUtils.trim(value);
-//			//System.out.println("ocr time: "+ (System.currentTimeMillis() - start));
-//			if(StringUtils.isNumeric(value)){
-//				return Integer.valueOf(value);
-//			}
-//		} catch (TesseractException e) {
-//		}
 		return contours.size() == 1 && hasOneInternal && ellipseFound.size == 1;
 	}
 	

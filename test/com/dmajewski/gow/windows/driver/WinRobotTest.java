@@ -18,7 +18,7 @@ public class WinRobotTest {
 
 	@Test
 	public void testTakeScreenshotToFile() {
-		WinRobot.takeScreenshot("test"+(new Date().getTime())+".png");
+		WinRobot.takeScreenshot("test"+(new Date().getTime())+".bmp");
 	}
 	
 	@Test
@@ -93,13 +93,13 @@ public class WinRobotTest {
 	
 	@Test
 	public void testIsMainScreenActive() throws Exception {
-		System.out.println(new WindowsPlayer().isMainScreenActive());
+		System.out.println(WindowsPlayer.isMainScreenActive());
 	}
 	
 	
 	@Test
 	public void testGetNumberOfRoundsLeft() throws Exception {
-		System.out.println(new WindowsPlayer().getNumberOfRoundsLeft());
+		System.out.println(WindowsPlayer.noMoreMovesLeft());
 	}
 		
 }

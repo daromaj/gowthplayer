@@ -62,7 +62,7 @@ public class WinRobot {
 	public static void takeScreenshot(String fname) {
 	    File outputfile = new File(fname);
 	    try {
-			ImageIO.write(takeScreenshot(), "png", outputfile);
+			ImageIO.write(takeScreenshot(), "bmp", outputfile);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

@@ -20,7 +20,6 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Hyperlink;
@@ -39,7 +38,6 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import javafx.stage.Window;
 
 public class MainWindow extends Application {
 
@@ -54,36 +52,14 @@ public class MainWindow extends Application {
 		launch(args);
 	}
 
-	private static void setupTesseract() {
-		JarUtils.extractJarResources("tessdata/");
-	}
-
 
 	@Override
 	public void start(Stage primaryStage) {
-//		alert = new Alert(AlertType.INFORMATION);
-//		alert.setTitle("Loading");
-//		alert.setHeaderText(null);
-//		alert.setContentText("Application is loading. It can take few seconds, please wait.");
-//		Button okbtn = (Button) alert.getDialogPane().lookupButton(ButtonType.OK);
-//		okbtn.setVisible(false);
-//		Window    window = alert.getDialogPane().getScene().getWindow();
-//		
-//		
-////		alert.getDialogPane().getButtonTypes().remove(0);
-////		alert.initOwner(primaryStage);
-//		alert.show();
-//
-//		
-//		System.out.println("Alert delay: " + (System.currentTimeMillis() - start));
-		
-		
 		primaryStage.setTitle("GOW treasuer hunt player");
 		Button btn = new Button();
 		btn.setText("Play");
 		TextArea textArea = new TextArea("Press play to start game\n");
 		textArea.setWrapText(true);
-		setupTesseract();
 		
         Label spinnerLabel = new Label("Number of games to play:");
         final Spinner<Integer> spinner = new Spinner<Integer>();		
@@ -137,10 +113,6 @@ public class MainWindow extends Application {
         spinner.setValueFactory(valueFactory);
         
         FlowPane spinnerPane = new FlowPane();
-//        spinnerPane.setHgap(10);
-//        spinnerPane.setVgap(10);
-//        spinnerPane.setPadding(new Insets(10));
- 
         spinnerPane.getChildren().addAll(spinnerLabel, spinner);       
         
         spinner.valueProperty().addListener(new ChangeListener<Integer>() {
@@ -265,8 +237,9 @@ public class MainWindow extends Application {
 		primaryStage.show();
 //		window.hide();
 		//WinRobot.findZoom(primaryStage);
-		SplashWindow.FRAME_INSTANCE.dispose();
-		System.out.println("Startup time: " + (System.currentTimeMillis() - SplashWindow.START_TIME));
+		if(SplashWindow.FRAME_INSTANCE != null){
+			SplashWindow.FRAME_INSTANCE.dispose();
+		}
 	}
 
 	private void configureWindowsPlayer(Button btn, TextArea textArea, Spinner<Integer> spinner) {
