@@ -29,6 +29,9 @@
             </manifest>
             <zipfileset src="jar-in-jar-loader.zip"/>
             <fileset dir="${dir.buildfile}/target/classes"/>
+            <fileset dir="${dir.buildfile}/src">
+              <include name="project.properties"/>
+            </fileset>        	
             <zipfileset dir="${user.home}/.m2/repository/commons-io/commons-io/2.5" includes="commons-io-2.5.jar"/>
             <zipfileset dir="${user.home}/.m2/repository/org/apache/commons/commons-lang3/3.5" includes="commons-lang3-3.5.jar"/>
             <zipfileset dir="${user.home}/.m2/repository/net/java/dev/jna/jna/4.4.0" includes="jna-4.4.0.jar"/>
