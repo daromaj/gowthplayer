@@ -1,6 +1,9 @@
 package com.dmajewski.gow.windows.app;
 
+import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -47,8 +50,20 @@ public class MainWindow extends Application {
 	public static Alert alert = null;
 	
 	public static long start = System.currentTimeMillis();
+	
+	public static String BUILD_TIMESTAMP;
+	public static String VERSION;
+	
 
 	public static void main(String[] args) {
+		Properties props = new Properties();
+		try {
+			props.load(MainWindow.class.getClassLoader().getResourceAsStream("project.properties"));
+			BUILD_TIMESTAMP = props.getProperty("buildtime");
+			VERSION = props.getProperty("version");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		launch(args);
 	}
 
@@ -304,7 +319,8 @@ public class MainWindow extends Application {
             }
         });	 
 	    fp2.getChildren().addAll(lbl3, link2);
-	    VBox vboxalert = new VBox(fp, fp2);
+	    Label versionInfo = new Label(MessageFormat.format("Vesion: {0}, Built on: {1}", VERSION, BUILD_TIMESTAMP));
+	    VBox vboxalert = new VBox(versionInfo, fp, fp2);
 	    alert.getDialogPane().contentProperty().set(vboxalert);
 	    return alert;
 	}
