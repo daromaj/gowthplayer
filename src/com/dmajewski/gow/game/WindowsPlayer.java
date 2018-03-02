@@ -1,5 +1,6 @@
 package com.dmajewski.gow.game;
 
+import java.awt.event.InputEvent;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.List;
@@ -57,9 +58,9 @@ public class WindowsPlayer implements Runnable {
 			GrayU8.class);
 
 	public static boolean isMainScreenActive() {
-		BufferedImage image = WinRobot.takeScreenshot().getSubimage((int) Math.round(1054 * WinRobot.xFix),
-				(int) Math.round(1003 * WinRobot.yFix), (int) Math.round(91 * WinRobot.xFix),
-				(int) Math.round(33 * WinRobot.yFix));
+		BufferedImage image = WinRobot.takeScreenshot().getSubimage((int) Math.round(695 * WinRobot.xFix),
+				(int) Math.round(1012 * WinRobot.yFix), (int) Math.round(110 * WinRobot.xFix),
+				(int) Math.round(40 * WinRobot.yFix));
 
 		GrayU8 input = ConvertBufferedImage.convertFromSingle(image, null, GrayU8.class);
 		GrayU8 binary = new GrayU8(input.width, input.height);
@@ -75,19 +76,22 @@ public class WindowsPlayer implements Runnable {
 
 		FastQueue<EllipseRotated_F64> ellipseFound = ellipseDetector.getFoundEllipses();
 
+//		System.out.println(ellipseFound.size);
+		
 		List<Contour> contours = BinaryImageOps.contour(filtered, ConnectRule.EIGHT, label);
+		
+//		System.out.println(contours.size());
 
-		return ellipseFound.size == 3 && contours.size() == 6;
+		return ellipseFound.size == 4 && contours.size() == 8;
 	}
 
 	public static boolean noMoreMovesLeft(BufferedImage... img) {
 		if (img == null || img.length == 0) {
 			img = new BufferedImage[] { WinRobot.takeScreenshot() };
 		}
-		BufferedImage image = img[0].getSubimage((int) Math.round(285 * WinRobot.xFix),
-				(int) Math.round(226 * WinRobot.yFix), (int) Math.round(66 * WinRobot.xFix),
-				(int) Math.round(42 * WinRobot.yFix));
-
+		BufferedImage image = img[0].getSubimage((int) Math.round(278 * WinRobot.xFix),
+				(int) Math.round(162 * WinRobot.yFix), (int) Math.round(66 * WinRobot.xFix),
+				(int) Math.round(42 * WinRobot.yFix));	
 		GrayU8 input = ConvertBufferedImage.convertFromSingle(image, null, GrayU8.class);
 		GrayU8 binary = new GrayU8(input.width, input.height);
 		GrayS32 label = new GrayS32(input.width, input.height);
@@ -123,15 +127,15 @@ public class WindowsPlayer implements Runnable {
 			// WinRobot.click(1850, 1000);
 			Thread.sleep(1000);
 			// mini games
-			WinRobot.click(950, 1000);
+			WinRobot.click(575, 972);
 
 			Thread.sleep(1000);
 			// mini treasure hunt
-			WinRobot.click(950, 800);
+			WinRobot.click(1033, 346);
 
-			Thread.sleep(1000);
+			//Thread.sleep(1000);
 			// start treasure hunt
-			WinRobot.click(950, 900);
+			//WinRobot.click(950, 900);
 			Thread.sleep(2000);
 		}
 	}
@@ -170,10 +174,10 @@ public class WindowsPlayer implements Runnable {
 			// File f = new File(fileName);
 			// BufferedImage bufferedImage = ImageIO.read(f);
 			BufferedImage bufferedImage = WinRobot.takeScreenshot().getSubimage(0, 0,
-					(int) Math.round(Paint.windowWidth / WinRobot.ZOOM),
-					(int) Math.round(Paint.windowHeight / WinRobot.ZOOM));
-			double xImgFix = WinRobot.xFix / WinRobot.ZOOM;
-			double yImgFix = WinRobot.yFix / WinRobot.ZOOM;
+					(int) Math.round(Paint.windowWidth),
+					(int) Math.round(Paint.windowHeight));
+			double xImgFix = WinRobot.xFix;
+			double yImgFix = WinRobot.yFix;
 			BufferedImage roundNumber = bufferedImage.getSubimage((int) Math.round(1090 * xImgFix),
 					(int) Math.round(15 * yImgFix), (int) Math.round(80 * xImgFix), (int) Math.round(40 * yImgFix));
 			// Color numColor = ScreenProcessor.averageColor(bufferedImage,
@@ -221,6 +225,9 @@ public class WindowsPlayer implements Runnable {
 			if (noMove > 9) {
 				prevRoundNumber = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
 				noMove = 0;
+				//sometimes Player get's blocked because there was a click registered in wrong place
+				//we make a random click to be able to move on
+				WinRobot.clickRandomGem();
 			}
 
 			if (exceptionCount > 10) {
@@ -238,10 +245,13 @@ public class WindowsPlayer implements Runnable {
 				int finishCounter = 5;
 				do {
 					info("Going back to main screen");
-					WinRobot.click(1830, 1000);
-					WinRobot.click(1830, 1000);
-					Thread.sleep(2000);
-					WinRobot.click(950, 550);
+					if(finishCounter % 2 == 0) {
+						WinRobot.click(575, 972);
+					}else {
+						WinRobot.click(622, 1005);
+					}
+					//622,1005
+//					WinRobot.click(979, 1005);
 					Thread.sleep(2000);
 					finishCounter--;
 				} while (!isMainScreenActive() && finishCounter > 0);

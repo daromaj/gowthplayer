@@ -23,9 +23,9 @@ public class ScreenProcessor {
 
 		// loop through the image and produce squares pixelSize*pixelSize
 		int i = 0, j = 0;
-		for (int w = (int) (485 * xImgFix); i < 8; w += Math.round(pixelSize * xImgFix)) {
+		for (int w = (int) (469 * xImgFix); i < 8; w += Math.round(pixelSize * xImgFix)) {
 			j = 0;
-			for (int h = (int) (79 * yImgFix); j < 8; h += Math.round(pixelSize * yImgFix)) {
+			for (int h = (int) (63 * yImgFix); j < 8; h += Math.round(pixelSize * yImgFix)) {
 				// new Color(bufferedImage.getRGB(w, h));
 				Color pixelColor = averageColor(bufferedImage, (int) Math.round(w + 20 * xImgFix),
 						(int) Math.round(h + 48 * yImgFix), (int) Math.round(74 * xImgFix),
@@ -88,7 +88,7 @@ public class ScreenProcessor {
 
 		// output file
 		ImageIO.write(bufferedImage, "png", outputFile);
-
+		System.out.println(outputFile.getCanonicalPath());
 		// s.printBoard();
 	}
 
